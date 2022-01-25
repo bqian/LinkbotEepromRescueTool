@@ -8,6 +8,11 @@ const routes = [
     component: Home
   },
   {
+    path: '/hardwareversion',
+    name: 'HardwareVersion',
+    component: () => import(/* webpackChunkName: "hardwareversion" */ '../views/HardwareVersion.vue')
+  },
+  {
     path: '/about',
     name: 'About',
     // route level code-splitting
