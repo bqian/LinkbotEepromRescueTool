@@ -1,0 +1,103 @@
+// This file defines the peer-to-peer BumpConnect messages transmitted between Linkbot robots.
+
+syntax = "proto2";
+
+import "commontypes.proto";
+
+package linkbot.bumpconnect;
+
+// =============================================================================
+// BumpConnect interface
+
+message ArbitrateMaster {
+    // SYNC_SHOCK
+    required uint32 millisSinceShock = 1;
+    required uint32 millisSinceButton = 2;
+}
+
+message SetMotorPower {
+    // SET_POWER
+    required int32 m1 = 1;
+    required int32 m2 = 2;
+    required int32 m3 = 3;
+}
+
+message SetJointPos {
+    // SET_POS
+    required float m1 = 1;
+    required float m2 = 2;
+    required float m3 = 3;
+}
+
+message GroupInfo {
+    // This message used with the SET_SLAVE or SET_MASTER message type
+    required uint32 groupId = 1;
+    required uint32 rgb = 2;
+    optional SerialId masterId = 3;
+}
+
+message SetSlave {
+    // SET_SLAVE
+    required GroupInfo groupInfo = 1;
+}
+
+message SetMaster {
+    // SET_MASTER
+    required GroupInfo groupInfo = 1;
+}
+
+message NewSlave {
+    // NEW_SLAVE, no payload
+}
+
+message Unpair {
+    // UNPAIR, no payload
+}
+
+message RecordPose {
+    // RECORD_POSE
+    optional uint32 index = 1;
+}
+
+message GotoPose {
+    // GOTO_POSE
+    required uint32 index = 1;
+}
+
+message PoseReached {
+    // POSE_REACHED, no payload
+}
+
+message PlayPoses {
+    // PLAY_POSES, no payload
+}
+
+message ClearPoses {
+    // CLEAR_POSES, no payload
+}
+
+message LedColor {
+    // SET_LED_COLOR
+    required uint32 color = 1;
+}
+
+// =============================================================================
+// Top-level BumpConnect interface messages
+
+message RobotToRobot {
+    oneof arg {
+        ArbitrateMaster arbitrateMaster = 1;
+        SetMotorPower setMotorPower = 2;
+        SetJointPos setJointPos = 3;
+        SetSlave setSlave = 4;
+        SetMaster setMaster = 5;
+        NewSlave newSlave = 6;
+        Unpair unpair = 7;
+        RecordPose recordPose = 8;
+        GotoPose gotoPose = 9;
+        PoseReached poseReached = 10;
+        PlayPoses playPoses = 11;
+        ClearPoses clearPoses = 12;
+        LedColor ledColor = 13;
+    }
+}

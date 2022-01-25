@@ -1,0 +1,38 @@
+syntax = "proto2";
+
+message PrexMessage {
+    enum MessageType {
+        LOAD_PROGRAM = 0;
+        IO = 1;
+        IMAGE = 2;
+        TERMINATE=3;
+        TERMINATE_ALL=4;
+        VERSION=5;
+    }
+
+    optional MessageType type = 1;
+    optional bytes payload = 2;
+}
+
+message LoadProgram {
+    optional string filename = 1;
+    optional string code = 2;
+    repeated string argv = 3;
+    optional string interpreter = 4;
+    repeated string env = 5;
+}
+
+message Io {
+    enum FD {
+        STDIN = 0;
+        STDOUT = 1;
+        STDERR = 2;
+    }
+    optional FD type = 1;
+    optional bytes data = 2;
+}
+
+message Image {
+    optional bytes payload = 1;
+    optional string format = 2;
+}

@@ -1,0 +1,14 @@
+syntax = "proto2";
+
+import "nanopb.proto";
+
+package linkbot;
+
+message SerialId {
+    required string value = 1 [(nanopb).max_size = 5];
+}
+
+enum RadioPort {
+    LINKBOT_RADIO_PROTOCOL = 5;
+    // Lock the radio protocol version number to the major version number of the firmware.
+}

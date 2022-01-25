@@ -1,0 +1,120 @@
+// This file defines control messages transmitted between the Linkbot daemon (linkbotd) and Linkbot
+// dongles (e.g., Z-Links or Linkbot robots themselves).
+
+syntax = "proto2";
+
+import "nanopb.proto";
+import "commontypes.proto";
+import "radio.proto";
+
+package linkbot.dongle;
+
+// =============================================================================
+// Dongle RPC messages
+
+message getFirmwareVersionString {
+    message In {}
+    message Out {
+        optional string value = 1 [(nanopb).max_size = 128];
+    }
+}
+
+message reboot {
+    message In {}
+    message Out {}
+}
+
+enum RadioMode {
+    FULL_DUPLEX = 0;
+    TRANSMIT = 1;
+    RECEIVE = 2;
+    // TODO: promiscuous sniffer mode?
+}
+
+message setRadioMode {
+    message In {
+        optional RadioMode mode = 1;
+    }
+    message Out {}
+}
+
+message setSessionId {
+    message In {
+        optional uint32 sessionId = 1;
+    }
+    message Out {}
+}
+
+message transmit {
+    // Transmit a message. Transmission method -- unicast or broadcast -- is determined by the
+    // presence of the `destination` field.
+    //
+    // Note that a Transmit.In message with no `routedRadioMessage` can be used to query the number
+    // of queued messages currently in the radio output buffer.
+
+    message In {
+        optional SerialId destination = 1;
+        optional radio.RoutedRadioMessage routedRadioMessage = 2;
+    }
+    message Out {
+        optional int32 queuedMessageCount = 1;
+    }
+}
+
+// =============================================================================
+// Dongle interface
+
+message RpcRequest {
+    optional uint32 requestId = 1;
+
+    oneof arg {
+        getFirmwareVersionString.In getFirmwareVersionString = 2;
+        reboot.In reboot = 3;
+        setRadioMode.In setRadioMode = 4;
+        setSessionId.In setSessionId = 5;
+        transmit.In transmit = 6;
+    }
+}
+
+message RpcReply {
+    optional uint32 requestId = 1;
+
+    oneof arg {
+        getFirmwareVersionString.Out getFirmwareVersionString = 2;
+        reboot.Out reboot = 3;
+        setRadioMode.Out setRadioMode = 4;
+        setSessionId.Out setSessionId = 5;
+        transmit.Out transmit = 6;
+    }
+}
+
+message ReceiveTransmission {
+    optional SerialId source = 1;
+    optional radio.RoutedRadioMessage routedRadioMessage = 2;
+}
+
+message DebugMessage {
+    optional string value = 1 [(nanopb).max_size = 128];
+}
+
+// =============================================================================
+// Top-level dongle interface messages
+
+message DaemonToDongle {
+    // Message sent via SFP from linkbotd to a Z-Link or Linkbot acting as a dongle.
+
+    oneof arg {
+        RpcRequest rpcRequest = 1;
+    }
+}
+
+message DongleToDaemon {
+    // Message sent via SFP from a Z-Link or Linkbot acting as a dongle to linkbotd.
+
+    oneof arg {
+        RpcReply rpcReply = 1;
+
+        ReceiveTransmission receiveTransmission = 2;
+        DebugMessage debugMessage = 3;
+    }
+}

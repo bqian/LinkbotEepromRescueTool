@@ -1,0 +1,69 @@
+// This file defines messages transmitted over Linkbot radios.
+
+syntax = "proto2";
+
+import "nanopb.proto";
+import "robot.proto";
+import "bumpconnect.proto";
+import "commontypes.proto";
+
+package linkbot.radio;
+
+// =============================================================================
+// Radio messages
+
+message ConnectSession {
+    // Radio broadcast from a daemon to a robot. If the robot is currently disconnected or already
+    // connected to that daemon, it will reply with a linkbot.robot.ConnnectEvent. If the robot is
+    // currently connected to a different daemon, it will reply with a
+    // linkbot.robot.DisconnectEvent.
+}
+
+message DisconnectSession {
+    // Radio broadcast from a daemon to a robot. If the robot is currently connected to that daemon,
+    // it will enter a disconnected state. Regardless, it always replies with a
+    // linkbot.robot.DisconnectEvent.
+}
+
+message PowerOnEvent {
+    // Radio broadcast from a robot to all daemons.
+    optional string version = 1 [(nanopb).max_size = 128];
+
+}
+
+message PowerOffEvent {
+    // Radio broadcast from a robot to all daemons.
+}
+
+message RadioMessage {
+    oneof arg {
+        robot.ClientToRobot clientToRobot = 1;
+        robot.ClientToRobotBroadcast clientToRobotBroadcast = 2;
+        robot.RobotToClient robotToClient = 3;
+
+        bumpconnect.RobotToRobot bumpConnect = 4;
+
+        ConnectSession connectSession = 5;
+        DisconnectSession disconnectSession = 6;
+        PowerOnEvent powerOnEvent = 7;
+	PowerOffEvent powerOffEvent = 8;
+    }
+}
+
+message RoutedRadioMessage {
+    // This message is the root of all radio messages sent to or from Linkbots.
+
+    repeated SerialId destinations = 1 [(nanopb).max_count = 8];
+    // List of Linkbot serial IDs / Z-Link radio addresses.
+    // If empty, this message is either a broadcast or a unicast message, and the recipient should
+    // interpret it as addressed to them. If non-empty, this message is a multicast message, and the
+    // recipient should ignore it unless their serial ID is listed.
+
+    optional uint32 sessionId = 2;
+    // The dongle uses the session ID as its radio address, but we still need to send it over the
+    // radio in order to use Linkbots themselves as dongles.
+
+    optional RadioMessage payload = 3;
+    // The actual guts of the message. This is factored out to a separate message, so that we can
+    // convert it to a repeated message later -- oneof fields cannot directly be repeated.
+}

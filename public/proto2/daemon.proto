@@ -1,0 +1,371 @@
+// This file defines control messages transmitted between Linkbot clients (e.g., language bindings)
+// and the Linkbot daemon, linkbotd.
+
+syntax = "proto2";
+
+import "nanopb.proto";
+import "commontypes.proto";
+import "robot.proto";
+
+package linkbot.daemon;
+
+// =============================================================================
+// Daemon RPC messages
+
+enum Status {
+    // TODO: clean out the deprecated junk from this list
+
+    OK = 0;
+    CANNOT_OPEN_DONGLE = 1;
+    DONGLE_NOT_FOUND = 2;
+    PORT_OUT_OF_RANGE = 3;
+
+    UNREGISTERED_SERIALID = 5;
+    INVALID_SERIALID = 6;
+
+    DAEMON_UNAVAILABLE = 7;
+
+    STRANGE_DONGLE = 8;
+    INCOMPATIBLE_FIRMWARE = 9;
+
+    BUFFER_OVERFLOW = 10;
+    OTHER_ERROR = 11;
+}
+
+message getDaemonVersionString {
+    message In {}
+    message Out {
+        optional string value = 1 [(nanopb).max_size = 128];
+    }
+}
+
+message getDongleCount {
+    // Get the number of dongles currently used by the daemon. Normally 0, 1, or 2.
+
+    message In {}
+    message Out {
+        optional uint32 dongleCount = 1;
+    }
+}
+
+message addRobotRefs {
+    // Add references to a robot in the daemon's robot list. If the ref count for a robot is now 1,
+    // the daemon makes a connection to the robot.
+    message In {
+        repeated SerialId serialIds = 1 [(nanopb).max_count = 16];
+    }
+    message Out {
+        optional Status status = 1;
+    }
+}
+
+message acquireRobotRef {
+    // Clients can "acquire" robot refs that have already been added via
+    // addRobotRefs.
+    message In {}
+    message Out {
+        optional SerialId serialId = 1;
+    }
+}
+
+message releaseRobotRefs {
+    // Release references to a robot in the daemon's robot list. If the ref count for a robot is now
+    // 0, the daemon disconnects from the robot.
+    message In {
+        repeated SerialId serialIds = 1 [(nanopb).max_count = 16];
+    }
+    message Out {
+        optional Status status = 1;
+    }
+}
+
+message getLinkbotFirmwareVersionString {
+    // get matching robot firmware version string
+    message In {}
+    message Out {
+        optional string value = 1 [(nanopb).max_size = 128];
+    }
+}
+
+message getArduinoFirmwareVersionString {
+    // get matching Arduino firmware version string
+    message In {}
+    message Out {
+        optional string value = 1 [(nanopb).max_size = 128];
+    }
+}
+
+message getLinkbotLabsVersionString {
+    // get matching LinkbotLabs version string
+    message In {}
+    message Out {
+        optional string value = 1 [(nanopb).max_size = 128];
+    }
+}
+
+message daemonCommand {
+    // Send a message to the daemon to modify something. Could be the daemon's
+    // firmware flashing paradigm, server port, whatever.
+    enum Command {
+        ENABLE_FIRMWARE_FLASHING = 0;
+        DISABLE_FIRMWARE_FLASHING = 1;
+        FLASH_ARDUINO_SHIELD = 2;
+    }
+
+    message In {
+        required Command command = 1;
+    }
+
+    message Out {
+    }
+}
+
+// TODO: Add reordering requests, e.g., slide(robots[x..y] to z) in the ordered list of robots.
+
+message transmit {
+    message In {
+        optional SerialId destination = 1;
+        optional robot.ClientToRobot payload = 2;
+    }
+    message Out {
+        optional Status status = 1;
+    }
+}
+
+enum BroadcastMethod {
+    BROADCAST = 0;
+    // A true radio broadcast to all stations within earshot.
+
+    MULTICAST_LOCAL = 1;
+    // A multicast radio broadcast to all stations currently connected to the initiating client.
+
+    MULTICAST_GLOBAL = 2;
+    // A multicast radio broadcast to all stations currently connected to the daemon.
+}
+
+message transmitBroadcast {
+    message In {
+        optional BroadcastMethod broadcastMethod = 1;
+        // If present, determines the behavior of an empty destinations list. If not present, assume
+        // defaults to BroadcastMethod.BROADCAST.
+
+        repeated SerialId destinations = 2 [(nanopb).max_count = 8];
+        // If `destinations` contains serial IDs, the message is multicast transmitted to
+        // the listed serial IDs and `broadcastMethod` is ignored.
+        // If `destinations` is empty, the true destinations are determined by `broadcastMethod`.
+        //
+        // For example:
+        //   - ["ZRG6"] multicasts to one station (`broadcastMethod` is ignored)
+        //   - ["ZRG6", "2KDV"] multicasts to two stations (`broadcastMethod` is ignored)
+        //   - [] depends on the value/presence of `broadcastMethod`:
+        //       - all stations by default
+        //         (`!has_broadcastMethod || broadcastMethod == BroadcastMethod.BROADCAST`)
+        //       - all stations connected to the client
+        //         (`broadcastMethod == BroadcastMethod.MULTICAST_LOCAL`)
+        //       - all stations connected to the daemon
+        //         (`broadcastMethod == BroadcastMethod.MULTICAST_GLOBAL`)
+
+        optional robot.ClientToRobotBroadcast payload = 4;
+    }
+    message Out {
+        optional Status status = 1;
+    }
+}
+
+message setRobotManagerRobots {
+    // This message will be sent from the robot manager (probably in
+    // linkbotjs2) to the daemon to set the current contents and order of the
+    // robot manager.
+
+    message In {
+        repeated SerialId robots = 1;
+    }
+
+    message Out {
+        optional Status status = 1;
+    }
+
+}
+
+message getRobotManagerRobots {
+    // Get the current list of acquirable robots from the daemon
+
+    message In {
+    }
+
+    message Out {
+        repeated SerialId robots = 1;
+    }
+}
+
+message getDongleFlashProgress {
+  // get firmware flashing progress
+
+  message In {
+  }
+
+  message Out {
+    optional uint32 progress = 1;
+  }
+}
+
+message getDongleStatus {
+  // get dongle status
+
+  message In {
+  }
+
+  message Out {
+    optional uint32 state = 1;
+    optional string firmwareVersion = 2;
+    optional uint32 flashProgress = 3;
+  }
+}
+
+message getArduinoStatus {
+  // get arduino status
+
+  message In {
+  }
+
+  message Out {
+    optional uint32 state = 1;
+    optional string firmwareVersion = 2;
+    optional uint32 flashProgress = 3;
+  }
+}
+
+// TODO: GetDongleSerialId method
+
+// =============================================================================
+// Daemon interface
+
+message RpcRequest {
+    optional uint32 requestId = 1;
+
+    oneof arg {
+        getDaemonVersionString.In getDaemonVersionString = 2;
+        getDongleCount.In getDongleCount = 3;
+        addRobotRefs.In addRobotRefs = 4;
+        releaseRobotRefs.In releaseRobotRefs = 5;
+        transmit.In transmit = 6;
+        transmitBroadcast.In transmitBroadcast = 7;
+        acquireRobotRef.In acquireRobotRef = 8;
+        daemonCommand.In daemonCommand = 9;
+        setRobotManagerRobots.In setRobotManagerRobots = 10;
+        getRobotManagerRobots.In getRobotManagerRobots = 11;
+        getDongleFlashProgress.In getDongleFlashProgress = 12;
+        getDongleStatus.In getDongleStatus = 13;
+        getArduinoStatus.In getArduinoStatus = 14;
+        getLinkbotFirmwareVersionString.In getLinkbotFirmwareVersionString = 15;
+        getArduinoFirmwareVersionString.In getArduinoFirmwareVersionString = 16;
+        getLinkbotLabsVersionString.In getLinkbotLabsVersionString = 17;
+    }
+}
+
+message RpcReply {
+    optional uint32 requestId = 1;
+
+    oneof arg {
+        getDaemonVersionString.Out getDaemonVersionString = 2;
+        getDongleCount.Out getDongleCount = 3;
+        addRobotRefs.Out addRobotRefs = 4;
+        releaseRobotRefs.Out releaseRobotRefs = 5;
+        transmit.Out transmit = 6;
+        transmitBroadcast.Out transmitBroadcast = 7;
+        acquireRobotRef.Out acquireRobotRef = 8;
+        daemonCommand.Out daemonCommand = 9;
+        setRobotManagerRobots.Out setRobotManagerRobots = 10;
+        getRobotManagerRobots.Out getRobotManagerRobots = 11;
+        getDongleFlashProgress.Out getDongleFlashProgress = 12;
+        getDongleStatus.Out getDongleStatus = 13;
+        getArduinoStatus.Out getArduinoStatus = 14;
+        getLinkbotFirmwareVersionString.Out getLinkbotFirmwareVersionString = 15;
+        getArduinoFirmwareVersionString.Out getArduinoFirmwareVersionString = 16;
+        getLinkbotLabsVersionString.Out getLinkbotLabsVersionString = 17;
+    }
+}
+
+message ReceiveTransmission {
+    optional SerialId serialId = 1;
+    optional robot.RobotToClient payload = 2;
+}
+
+enum DongleState {
+    FOUND = 0;
+    NOT_FOUND = 1;
+    OPEN = 2;
+    CANT_OPEN = 3;
+    CONNECTING = 4;
+    CONNECTED = 5;
+    CANT_CONNECT = 6;
+    WRONG_VERSION = 7;
+    FLASHING = 8;
+    DISCONNECTED = 9;
+    OTHERS = 10;
+}
+
+message DongleEvent {
+    optional DongleState state = 1;
+    optional string firmwareVersion = 2 [(nanopb).max_size = 128];
+    optional uint32 flashProgress = 3;
+}
+
+enum RobotState {
+  POWER_ON = 0;
+  POWER_OFF = 1;
+}
+
+message RobotEvent {
+    optional SerialId serialId = 1;
+    optional string firmwareVersion = 2 [(nanopb).max_size = 128];
+    optional RobotState state = 3;
+}
+
+
+message RobotManagerRobotsEvent {
+  repeated SerialId robots = 1;
+}
+
+message DaemonEvent {
+  oneof arg {
+    RobotManagerRobotsEvent robotManagerRobotsEvent = 1;
+  }
+}
+
+enum ArduinoState {
+  FLASH = 0;
+  ERROR = 1;
+  OTHER = 2;
+}
+
+message ArduinoEvent {
+  optional ArduinoState state = 1;
+  optional string firmwareVersion = 2 [(nanopb).max_size = 128];
+  optional uint32 flashProgress = 3;
+}
+
+// =============================================================================
+// Top-level daemon interface messages
+
+message ClientToDaemon {
+    // Message sent via WebSocket from a language binding to linkbotd.
+
+    oneof arg {
+        RpcRequest rpcRequest = 1;
+    }
+}
+
+message DaemonToClient {
+    // Message sent via WebSocket from linkbotd to a language binding.
+
+    oneof arg {
+        RpcReply rpcReply = 1;
+
+        ReceiveTransmission receive = 2;
+        DongleEvent dongleEvent = 3;
+        RobotEvent robotEvent = 4;
+        DaemonEvent daemonEvent = 5;
+        ArduinoEvent arduinoEvent = 6;
+    }
+}
